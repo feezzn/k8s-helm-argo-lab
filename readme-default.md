@@ -56,44 +56,139 @@ Componentes:
 
 ## Modelo de dados (o mais importante — defina isso primeiro)
 
-O MongoDB armazena um documento por serviço. Este é o "contrato":
+O MongoDB armazena um documento por serviço. Abaixo está o **schema real** observado em produção num IDP bancário — duas entradas reais para referência:
 
 ```json
+// Serviço .NET (worker/consumer)
 {
-  "name": "meu-servico-api",
-  "project": "meu-time",
-  "type": "python-fastapi",
-  "version": "3.11",
-  "path": "src/",
-
-  "environments": {
-    "staging": {
-      "k8s_cluster": "k3d-local",
-      "namespace": "meu-time-staging",
-      "replicas": 1
-    },
-    "production": {
-      "k8s_cluster": "k3d-local",
-      "namespace": "meu-time-production",
-      "replicas": 2
-    }
-  },
-
-  "helm_values": {
-    "resources": {
-      "limits":   { "memory": "256Mi", "cpu": "250m" },
-      "requests": { "memory": "128Mi", "cpu": "100m" }
-    }
-  },
-
+  "_id":              "afra-events-alteracao-cadastral-consumer",
+  "nome":             "afra-events-alteracao-cadastral-consumer",
+  "id_aplicacao":     "afra",      // sigla do time/squad
+  "id_capacidade":    "onr",       // domínio de negócio
+  "type":             "dotnet",
+  "dotnet_version":   "8",
+  "dotnet_template":  "Bmg.Template.Net.ConsumerService",  // template de projeto
+  "path_solution":    "Bmg.EventsAlteracaoCadastral.sln",
+  "path_project":     "Adapters/Driving/Services/Bmg.EventsAlteracaoCadastral.ConsumerService/",
   "variables": {
-    "staging":    { "LOG_LEVEL": "DEBUG", "DB_URL": "postgres://staging..." },
-    "production": { "LOG_LEVEL": "INFO",  "DB_URL": "postgres://prod..." }
+    "quality_approvers":     "True",
+    "quality_approvers_hml": "True"
+  }
+}
+
+// Serviço Frontend
+{
+  "_id":           "cnib-shared-ib-front",
+  "nome":          "cnib-shared-ib-front",
+  "id_aplicacao":  "cnib",
+  "id_capacidade": "dir",
+  "type":          "front",
+  "version":       "20",           // versão do Node
+  "variables": {
+    "quality_approvers":     "True",
+    "quality_approvers_hml": "True"
   }
 }
 ```
 
-> **Por que MongoDB?** Schema flexível — cada serviço pode ter campos extras sem migração. Em produção use MongoDB Atlas (tem free tier para sempre).
+### São 3 coleções no MongoDB — e cada uma tem um dono diferente
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  collection: aplicacoes          (cadastrado pela equipe de plataforma) │
+│                                                                         │
+│  { _id: "acaf",                                                         │
+│    id_capacidade: "aca",                                                │
+│    nome: "Fator Autenticação Interface Otp" }                           │
+│                                                                         │
+│  → mapeia sigla curta → nome do squad/aplicação                         │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  collection: configuracoes       (cadastrado pela equipe de infra/cloud)│
+│                                                                         │
+│  { _id: "prb",                                                          │
+│    ambientes: {                                                         │
+│      hml: { aws_account: "120586588729",                                │
+│             aws_region:  "us-east-2",                                   │
+│             eks_cluster: "bmg-prb-eks-hml" },                          │
+│      uat: { aws_account: "804811132013",                                │
+│             aws_region:  "us-east-2",                                   │
+│             eks_cluster: "bmg-prb-eks-uat" },                          │
+│      prd: { aws_account: "272578032931",                                │
+│             aws_region:  "sa-east-1",                                   │
+│             eks_cluster: "bmg-prb-eks-prd" }                           │
+│    }                                                                    │
+│  }                                                                      │
+│                                                                         │
+│  → mapeia id_capacidade + ambiente → AWS account + region + EKS        │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  collection: servicos            (cadastrado pelo dev / tech lead)      │
+│                                                                         │
+│  { _id: "afra-events-alteracao-cadastral-consumer",                     │
+│    id_aplicacao:  "afra",   ──→ lookup em aplicacoes                   │
+│    id_capacidade: "onr",    ──→ lookup em configuracoes                 │
+│    type:          "dotnet",                                             │
+│    ... }                                                                │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### A ordem de criação (quem cria o quê e quando)
+
+```
+ETAPA 1 — Acontece UMA VEZ por domínio (feito pela equipe de Cloud/Infra)
+  │
+  ├─ Cria as contas AWS (hml / uat / prd) → processo manual ou IaC
+  ├─ Provisiona o cluster EKS em cada conta
+  └─ Roda o pipeline  azure_pipeline_add_configuracao
+         catalog configuracoes add "prb" hml "1205..." "us-east-2" "bmg-prb-eks-hml"
+         catalog configuracoes add "prb" uat "8048..." "us-east-2" "bmg-prb-eks-uat"
+         catalog configuracoes add "prb" prd "2725..." "sa-east-1" "bmg-prb-eks-prd"
+         → registra no MongoDB: id_capacidade + ambientes
+
+
+ETAPA 2 — Acontece UMA VEZ por squad (feito pela plataforma no onboarding)
+  │
+  └─ Roda o pipeline  azure_pipeline_add_servico (ou equivalente)
+         catalog aplicacoes add "acaf" "aca" "Fator Autenticação Interface Otp"
+         → registra no MongoDB: id_aplicacao → nome
+
+
+ETAPA 3 — Acontece CADA VEZ que um novo serviço nasce (feito pelo dev/tech lead)
+  │
+  ├─ Cria o repo no Azure DevOps / GitHub (via Terraform)
+  └─ Roda o pipeline  azure_pipeline_add_servico
+         catalog servicos add "meu-servico" "acaf" "dotnet" ...
+         → registra no MongoDB: serviço → id_aplicacao + id_capacidade
+
+
+ETAPA 4 — Acontece em CADA COMMIT (automático, zero intervenção humana)
+  │
+  └─ Pipeline lê o MongoDB:
+       servico["id_capacidade"] = "prb"
+                 ↓  lookup
+       configuracoes["prb"]["prd"] = { account: "2725...", eks: "bmg-prb-eks-prd" }
+                 ↓
+       helm upgrade ... --set image.tag=v1.2.3
+```
+
+### Por que esse modelo é elegante
+
+| Campo | O que resolve |
+|---|---|
+| `id_aplicacao` | Determina qual AWS service connection usar (por squad) |
+| `id_capacidade` | Chave de lookup nas `configuracoes` → traz account/region/EKS |
+| `type` | Determina qual pipeline template rodar (`dotnet`, `front`, `python-fastapi`...) |
+| `dotnet_version` / `version` | Determina qual agent pool usar (ex: pool com .NET 10 separado) |
+| `dotnet_template` | O template de projeto que foi usado — útil para validação e scaffolding |
+| `path_solution` / `path_project` | O pipeline não precisa de parâmetro — ele lê daqui |
+| `variables` | Feature flags e configs por serviço (ex: exige quality approvers ou não) |
+
+**O grande benefício da separação em 3 coleções:** se o cluster EKS da capacidade `prb` migrar de `us-east-2` para `sa-east-1`, você atualiza **um documento** na coleção `configuracoes` e todos os ~N serviços daquela capacidade pegam o update automaticamente. Sem tocar em pipeline nenhum.
+
+> **Por que MongoDB?** Schema flexível — cada `type` pode ter campos extras sem migração. `dotnet` tem `dotnet_template`, `front` tem `version` Node, `python` teria `python_version`. SQL exigiria ALTER TABLE para cada variação.
 
 ---
 
