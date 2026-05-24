@@ -26,7 +26,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 
 # 5. Aguarda Argo estar pronto
 echo "5️⃣ Aguardando Argo ficar pronto..."
-kubectl wait --for=condition=available --timeout=300s deployment/argo-workflows-server -n argo
+kubectl wait --for=condition=available --timeout=300s deployment/argo-server -n argo
 
 # 6. Ativa Argo UI
 echo "6️⃣ Ativando Argo UI (port-forward)..."
@@ -34,7 +34,7 @@ echo ""
 echo "✅ Setup completo!"
 echo ""
 echo "Para acessar o Argo UI, rode em outro terminal:"
-echo "  kubectl port-forward -n argo svc/argo-workflows-server 2746:2746"
+echo "  kubectl port-forward -n argo svc/argo-server 2746:2746"
 echo ""
 echo "Depois acessa: http://localhost:2746"
 echo ""
