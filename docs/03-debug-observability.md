@@ -66,12 +66,12 @@ kubectl logs -n keda-lab deploy/orders-consumer -f
 ```bash
 kubectl run kafka-debug \
   --namespace kafka \
-  --image=bitnami/kafka:3.7.0 \
+  --image=apache/kafka:3.7.2 \
   --restart=Never \
   --rm \
   --stdin \
   --tty \
-  -- kafka-consumer-groups.sh \
+  -- /opt/kafka/bin/kafka-consumer-groups.sh \
     --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
     --describe \
     --group orders-consumer

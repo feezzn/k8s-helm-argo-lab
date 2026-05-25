@@ -25,6 +25,14 @@ O assistente nao executa esses comandos por voce.
 ./scripts/01-kind-create.sh
 ```
 
+Antes de instalar KEDA, valide a base do cluster:
+
+```bash
+./scripts/01b-check-cluster-health.sh
+```
+
+Se `kube-proxy` estiver em `CrashLoopBackOff` ou CoreDNS estiver `0/1`, pare aqui e veja [docs/00-kind-troubleshooting.md](00-kind-troubleshooting.md).
+
 Se voce quiser usar um cluster ja existente, pule este passo e confira o contexto:
 
 ```bash
@@ -54,6 +62,30 @@ kubectl get pods -n keda
 kubectl get crd | grep keda
 ```
 
+Nao siga para o Kafka se:
+
+- `kube-system` tiver `coredns` sem Ready.
+- `kube-system` tiver `kube-proxy` em `CrashLoopBackOff`.
+- pods do KEDA estiverem presos em `FailedMount`.
+- o secret `kedaorg-certs` nao existir.
+
+Debug rapido:
+
+```bash
+./scripts/09-debug-keda-bootstrap.sh
+```
+
+Se o problema for o secret `kedaorg-certs` ausente, olhe primeiro os jobs/hooks do chart:
+
+```bash
+kubectl get job -n keda
+kubectl get secret -n keda
+kubectl describe pod -n keda
+helm status keda -n keda
+```
+
+Mas se `kube-proxy` e `coredns` tambem estao quebrados, trate isso como problema do cluster Kind antes de tratar como problema do KEDA.
+
 ## 4. Subir Kafka local
 
 ```bash
@@ -70,6 +102,25 @@ kubectl get pods -n kafka
 kubectl get svc -n kafka
 kubectl logs -n kafka statefulset/kafka
 ```
+
+Se o script parecer travado apos criar o StatefulSet, ele provavelmente esta aguardando o pod `kafka-0` ficar Ready.
+Abra outro terminal e veja:
+
+```bash
+kubectl get pods -n kafka -o wide
+kubectl describe pod kafka-0 -n kafka
+kubectl logs -n kafka pod/kafka-0 --all-containers --tail=160
+kubectl get events -n kafka --sort-by=.lastTimestamp
+```
+
+Se precisar interromper e ajustar:
+
+```bash
+kubectl delete -f infra/kafka/kafka-single-node.yaml
+```
+
+Se o erro for `ImagePullBackOff` com `bitnami/kafka:3.7.0`, atualize o repo e reaplique.
+Este lab usa a imagem oficial `apache/kafka:3.7.2`.
 
 ## 5. Buildar e carregar o consumer no Kind
 

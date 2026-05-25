@@ -18,9 +18,11 @@ Os comandos estao nos docs e scripts para voce rodar manualmente.
 ## Por onde comecar
 
 1. Leia [docs/01-keda-aula.md](docs/01-keda-aula.md).
-2. Rode o lab local seguindo [docs/02-local-kind-kafka.md](docs/02-local-kind-kafka.md).
-3. Use [docs/03-debug-observability.md](docs/03-debug-observability.md) para entender o que o KEDA criou por baixo.
-4. Quando quiser treinar cloud, leia [docs/04-aws-msk.md](docs/04-aws-msk.md).
+2. Se o Kind nao ficar saudavel, use [docs/00-kind-troubleshooting.md](docs/00-kind-troubleshooting.md).
+3. Leia [docs/05-kubernetes-base-components.md](docs/05-kubernetes-base-components.md) para entender `kube-proxy`, CoreDNS e companhia.
+4. Rode o lab local seguindo [docs/02-local-kind-kafka.md](docs/02-local-kind-kafka.md).
+5. Use [docs/03-debug-observability.md](docs/03-debug-observability.md) para entender o que o KEDA criou por baixo.
+6. Quando quiser treinar cloud, leia [docs/04-aws-msk.md](docs/04-aws-msk.md).
 
 ## Estrutura
 
@@ -54,12 +56,14 @@ Abra os scripts antes de executar:
 ```bash
 sed -n '1,200p' scripts/00-check-tools.sh
 sed -n '1,200p' scripts/01-kind-create.sh
+sed -n '1,200p' scripts/01b-check-cluster-health.sh
 sed -n '1,200p' scripts/02-install-keda.sh
 sed -n '1,200p' scripts/03-install-kafka.sh
 sed -n '1,200p' scripts/04-build-load-consumer.sh
 sed -n '1,200p' scripts/05-install-consumer.sh
 sed -n '1,200p' scripts/06-produce-load.sh
 sed -n '1,200p' scripts/07-watch.sh
+sed -n '1,200p' scripts/09-debug-keda-bootstrap.sh
 ```
 
 Depois execute na ordem, se fizer sentido para o seu ambiente.
