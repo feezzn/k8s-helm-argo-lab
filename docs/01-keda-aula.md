@@ -135,6 +135,109 @@ Esse numero ainda e limitado por:
 - comportamento do HPA
 - velocidade real do consumer
 
+## Lendo o resultado do lab
+
+Exemplo real:
+
+```text
+scaledobject/orders-consumer
+READY=True ACTIVE=True MIN=0 MAX=6
+
+hpa/keda-hpa-orders-consumer
+TARGETS 10/10 (avg)
+MINPODS 1
+MAXPODS 6
+REPLICAS 6
+
+deployment/orders-consumer
+READY 6/6
+```
+
+O que isso quer dizer:
+
+`READY=True`
+: O KEDA conseguiu reconciliar o `ScaledObject` e falar com a fonte configurada.
+
+`ACTIVE=True`
+: O trigger esta ativo. No caso do Kafka, existe lag suficiente para acionar escala.
+
+`TARGETS 10/10 (avg)`
+: O HPA recebeu do KEDA uma metrica externa e compara valor atual com alvo.
+Neste lab, `lagThreshold: "10"`, entao o alvo e 10 mensagens de lag por replica.
+
+`REPLICAS 6`
+: O HPA calculou replicas desejadas e bateu no teto `maxReplicaCount: 6`.
+
+`MINPODS 1`
+: Mesmo com `minReplicaCount: 0` no KEDA, o HPA gerado geralmente mostra minimo 1 enquanto o scaler esta ativo.
+O KEDA cuida da transicao especial `0 -> 1` e `1 -> 0`.
+
+## De onde sairam os dados
+
+Neste lab, os dados vieram deste job:
+
+```yaml
+kind: Job
+metadata:
+  name: orders-producer
+```
+
+Ele executa:
+
+```bash
+for i in $(seq 1 240); do
+  echo "{\"order_id\":${i},\"source\":\"keda-lab\"}"
+done | /opt/kafka/bin/kafka-console-producer.sh \
+  --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+  --topic orders
+```
+
+Ou seja:
+
+- foram produzidas 240 mensagens.
+- no topico `orders`.
+- no Kafka acessivel por `kafka.kafka.svc.cluster.local:9092`.
+
+O consumer Python usa:
+
+```text
+KAFKA_TOPIC=orders
+KAFKA_GROUP_ID=orders-consumer
+PROCESSING_SECONDS=2
+```
+
+Cada pod processa uma mensagem e dorme 2 segundos antes de commitar.
+Esse atraso cria backlog de proposito.
+
+## De onde o KEDA tirou a metrica
+
+O `ScaledObject` do chart tem:
+
+```yaml
+triggers:
+  - type: kafka
+    metadata:
+      bootstrapServers: "kafka.kafka.svc.cluster.local:9092"
+      consumerGroup: "orders-consumer"
+      topic: "orders"
+      lagThreshold: "10"
+      activationLagThreshold: "5"
+```
+
+O KEDA usa essas informacoes para consultar o Kafka e calcular o lag do consumer group.
+
+Lag, simplificado:
+
+```text
+ultimo offset produzido no topico - ultimo offset commitado pelo consumer group
+```
+
+Se existem 240 mensagens produzidas e poucas commitadas, o lag e alto.
+Se os consumers processam e commitam, o lag cai.
+
+O KEDA expoe esse lag como metrica externa.
+O HPA le essa metrica externa e decide quantas replicas o Deployment deve ter.
+
 ## O detalhe das particoes
 
 Kafka nao distribui uma mesma particao para dois consumers do mesmo group ao mesmo tempo.

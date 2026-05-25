@@ -77,6 +77,46 @@ kubectl run kafka-debug \
     --group orders-consumer
 ```
 
+Outra forma, sem criar pod interativo:
+
+```bash
+kubectl -n kafka exec kafka-0 -- \
+  /opt/kafka/bin/kafka-consumer-groups.sh \
+    --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+    --describe \
+    --group orders-consumer
+```
+
+Campos importantes:
+
+`CURRENT-OFFSET`
+: Ultimo offset commitado pelo consumer group.
+
+`LOG-END-OFFSET`
+: Ultimo offset produzido na particao.
+
+`LAG`
+: Diferenca entre o que foi produzido e o que ja foi commitado.
+
+`CONSUMER-ID`
+: Qual pod/consumer esta dono daquela particao agora.
+
+Para ver o topico e particoes:
+
+```bash
+kubectl -n kafka exec kafka-0 -- \
+  /opt/kafka/bin/kafka-topics.sh \
+    --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+    --describe \
+    --topic orders
+```
+
+Para ver os logs do consumer:
+
+```bash
+kubectl -n keda-lab logs deploy/orders-consumer --tail=120
+```
+
 ## Falhas comuns
 
 ### Deployment nao sai de zero

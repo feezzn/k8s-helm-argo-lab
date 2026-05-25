@@ -22,7 +22,8 @@ Os comandos estao nos docs e scripts para voce rodar manualmente.
 3. Leia [docs/05-kubernetes-base-components.md](docs/05-kubernetes-base-components.md) para entender `kube-proxy`, CoreDNS e companhia.
 4. Rode o lab local seguindo [docs/02-local-kind-kafka.md](docs/02-local-kind-kafka.md).
 5. Use [docs/03-debug-observability.md](docs/03-debug-observability.md) para entender o que o KEDA criou por baixo.
-6. Quando quiser treinar cloud, leia [docs/04-aws-msk.md](docs/04-aws-msk.md).
+6. Para investigar KEDA em outro cluster, use [docs/06-keda-cluster-audit.md](docs/06-keda-cluster-audit.md).
+7. Quando quiser treinar cloud, leia [docs/04-aws-msk.md](docs/04-aws-msk.md).
 
 ## Estrutura
 
