@@ -1,0 +1,6 @@
+apiVersion: v2
+name: consumer-keda
+description: Slow Kafka consumer used to learn KEDA event-driven autoscaling.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

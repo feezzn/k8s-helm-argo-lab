@@ -1,0 +1,32 @@
+replicaCount: 0
+
+image:
+  repository: keda-orders-consumer
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+consumer:
+  bootstrapServers: kafka.kafka.svc.cluster.local:9092
+  topic: orders
+  groupId: orders-consumer
+  processingSeconds: "2"
+  logLevel: INFO
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 96Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
+scaledObject:
+  enabled: true
+  pollingInterval: 5
+  cooldownPeriod: 30
+  minReplicaCount: 0
+  maxReplicaCount: 6
+  kafka:
+    lagThreshold: "10"
+    activationLagThreshold: "5"
+    offsetResetPolicy: earliest

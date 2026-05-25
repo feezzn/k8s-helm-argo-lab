@@ -1,0 +1,34 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: orders-consumer-msk-auth
+  namespace: keda-lab
+spec:
+  podIdentity:
+    provider: aws-eks
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: orders-consumer
+  namespace: keda-lab
+spec:
+  scaleTargetRef:
+    name: orders-consumer
+  pollingInterval: 10
+  cooldownPeriod: 60
+  minReplicaCount: 0
+  maxReplicaCount: 6
+  triggers:
+    - type: kafka
+      authenticationRef:
+        name: orders-consumer-msk-auth
+      metadata:
+        bootstrapServers: "replace-with-msk-bootstrap-brokers:9098"
+        consumerGroup: orders-consumer
+        topic: orders
+        lagThreshold: "10"
+        activationLagThreshold: "5"
+        sasl: aws_msk_iam
+        tls: enable
+        awsRegion: us-east-1

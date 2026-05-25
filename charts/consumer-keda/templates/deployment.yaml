@@ -1,0 +1,34 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "consumer-keda.fullname" . }}
+  labels:
+    {{- include "consumer-keda.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "consumer-keda.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "consumer-keda.selectorLabels" . | nindent 8 }}
+    spec:
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: consumer
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          env:
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              value: {{ .Values.consumer.bootstrapServers | quote }}
+            - name: KAFKA_TOPIC
+              value: {{ .Values.consumer.topic | quote }}
+            - name: KAFKA_GROUP_ID
+              value: {{ .Values.consumer.groupId | quote }}
+            - name: PROCESSING_SECONDS
+              value: {{ .Values.consumer.processingSeconds | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.consumer.logLevel | quote }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}

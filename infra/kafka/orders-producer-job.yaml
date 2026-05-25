@@ -1,0 +1,23 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: orders-producer
+  namespace: kafka
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: producer
+          image: bitnami/kafka:3.7.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              for i in $(seq 1 240); do
+                echo "{\"order_id\":${i},\"source\":\"keda-lab\"}"
+              done | kafka-console-producer.sh \
+                --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+                --topic orders
+  backoffLimit: 0

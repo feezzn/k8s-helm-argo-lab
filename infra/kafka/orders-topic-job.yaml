@@ -1,0 +1,24 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: orders-topic
+  namespace: kafka
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-topics
+          image: bitnami/kafka:3.7.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              kafka-topics.sh \
+                --bootstrap-server kafka.kafka.svc.cluster.local:9092 \
+                --create \
+                --if-not-exists \
+                --topic orders \
+                --partitions 6 \
+                --replication-factor 1
